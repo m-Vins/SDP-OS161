@@ -30,6 +30,16 @@
 #ifndef _SYNCH_H_
 #define _SYNCH_H_
 
+
+/*
+ * LOCKV:
+ * - 1  : version of lock with semaphores
+ * - 2  : version of lock with spinlock and wchan
+ * else : default version
+ */ 
+#define LOCKV 2
+
+
 /*
  * Header file for synchronization primitives.
  */
@@ -72,12 +82,30 @@ void V(struct semaphore *);
  * The name field is for easier debugging. A copy of the name is
  * (should be) made internally.
  */
+#if LOCKV==2
+struct lock {
+        char *lk_name;
+        struct wchan *lk_wchan;
+	struct spinlock lk_lock;
+        volatile unsigned lk_count;
+        struct thread *owner;
+        HANGMAN_LOCKABLE(lk_hangman);   /* Deadlock detector hook. */
+};
+#elif LOCKV==1
 struct lock {
         char *lk_name;
         HANGMAN_LOCKABLE(lk_hangman);   /* Deadlock detector hook. */
         // add what you need here
         // (don't forget to mark things volatile as needed)
 };
+#else
+struct lock {
+        char *lk_name;
+        HANGMAN_LOCKABLE(lk_hangman);   /* Deadlock detector hook. */
+        // add what you need here
+        // (don't forget to mark things volatile as needed)
+};
+#endif
 
 struct lock *lock_create(const char *name);
 void lock_destroy(struct lock *);
