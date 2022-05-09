@@ -225,8 +225,14 @@ lock_release(struct lock *lock)
 
 bool
 lock_do_i_hold(struct lock *lock)
-{
-        return lock->owner == curthread; 
+{       
+        spinlock_acquire(&lock->lk_lock);
+        if(lock->owner == curthread){
+                spinlock_release(&lock->lk_lock);
+                return true;
+        }
+        spinlock_release(&lock->lk_lock);
+        return false; 
 }
 
 ////////////////////////////////////////////////////////////
