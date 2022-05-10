@@ -177,7 +177,6 @@ lock_destroy(struct lock *lock)
 {
         KASSERT(lock != NULL);
 
-        // add stuff here as needed
         spinlock_cleanup(&lock->lk_lock);
 	wchan_destroy(lock->lk_wchan);
         kfree(lock->lk_name);
@@ -317,6 +316,8 @@ lock_do_i_hold(struct lock *lock)
 struct cv *
 cv_create(const char *name)
 {
+
+        
         struct cv *cv;
 
         cv = kmalloc(sizeof(*cv));
@@ -330,7 +331,16 @@ cv_create(const char *name)
                 return NULL;
         }
 
-        // add stuff here as needed
+        HANGMAN_LOCKABLEINIT(&cv->cv_hangman, cv->cv_name);
+
+        cv->cv_wchan = wchan_create(cv->cv_name);
+	if (cv->cv_wchan == NULL) {
+		kfree(cv->cv_name);
+		kfree(cv);
+		return NULL;
+	}
+
+        spinlock_init(&cv->cv_lock);
 
         return cv;
 }
@@ -340,8 +350,8 @@ cv_destroy(struct cv *cv)
 {
         KASSERT(cv != NULL);
 
-        // add stuff here as needed
-
+        spinlock_cleanup(&cv->cv_lock);
+        wchan_destroy(cv->cv_wchan);
         kfree(cv->cv_name);
         kfree(cv);
 }
@@ -349,25 +359,56 @@ cv_destroy(struct cv *cv)
 void
 cv_wait(struct cv *cv, struct lock *lock)
 {
-        // Write this
-        (void)cv;    // suppress warning until code gets written
-        (void)lock;  // suppress warning until code gets written
+        KASSERT(cv != NULL);
+        KASSERT(lock != NULL);
+        KASSERT(lock_do_i_hold(lock));
+
+        spinlock_acquire(&cv->cv_lock);                 //acquire the spinlock
+        lock_release(lock);                             //release the resources in order to 
+                                                        //make the other thread check che variable or change it
+        wchan_sleep(cv->cv_wchan,&cv->cv_lock);         //sleep
+        spinlock_release(&cv->cv_lock);                 //release the spinlock after wake up
+        lock_acquire(lock);                             //re-acquire the lock
+
+/* NOTE that it could be better to swap the last two instruction like:
+ * lock_acquire(lock);
+ * spinlock_release(&cv->cv_lock);
+ * in order to make the whole function atomic but it is impossible 
+ * because it will trigger an ASSERT of the kernel since it is not allowed to hold 
+ * multiple lock at a time. 
+ * in this case : 
+ *      - the spinlock cv->cv_lock  
+ *      - the spinlock of the lock, i.e. lock->lk-lock
+ */
+        
 }
 
 void
 cv_signal(struct cv *cv, struct lock *lock)
 {
-        // Write this
-	(void)cv;    // suppress warning until code gets written
-	(void)lock;  // suppress warning until code gets written
+        KASSERT(cv != NULL);
+        KASSERT(lock != NULL);
+        KASSERT(lock_do_i_hold(lock));
+
+        spinlock_acquire(&cv->cv_lock);
+        wchan_wakeone(cv->cv_wchan,&cv->cv_lock);
+        spinlock_release(&cv->cv_lock);
+/* NOTE
+ * I wolud not used the spinlock, but it is required for the waiting channel.
+ */
+
 }
 
 void
 cv_broadcast(struct cv *cv, struct lock *lock)
 {
-	// Write this
-	(void)cv;    // suppress warning until code gets written
-	(void)lock;  // suppress warning until code gets written
+        KASSERT(cv != NULL);
+        KASSERT(lock != NULL);
+        KASSERT(lock_do_i_hold(lock));
+
+        spinlock_acquire(&cv->cv_lock);
+        wchan_wakeall(cv->cv_wchan,&cv->cv_lock);
+        spinlock_release(&cv->cv_lock);
 }
 #else
 struct cv *
