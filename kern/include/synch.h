@@ -34,10 +34,16 @@
 /*
  * LOCKV:
  * - 1  : version of lock with spinlock and wchan
- * 
  * else : default version
  */ 
 #define LOCKV 1
+
+/*
+ * CONDV:
+ * - 1  : my implementation of condition variables
+ * else : default version 
+ */
+#define CONDV 1
 
 
 /*
@@ -134,11 +140,19 @@ bool lock_do_i_hold(struct lock *);
  * (should be) made internally.
  */
 
+#if CONDV==1
 struct cv {
         char *cv_name;
         // add what you need here
         // (don't forget to mark things volatile as needed)
 };
+#else
+struct cv {
+        char *cv_name;
+        // add what you need here
+        // (don't forget to mark things volatile as needed)
+};
+#endif
 
 struct cv *cv_create(const char *name);
 void cv_destroy(struct cv *);
