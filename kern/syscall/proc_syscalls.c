@@ -50,3 +50,34 @@ sys__exit(int status)
   panic("thread_exit returned (should not happen)\n");
   (void) status; // TODO: status handling
 }
+
+int
+sys_waitpid(pid_t pid, userptr_t statusp, int options)
+{
+#if OPT_WAITPID
+  struct proc *p = proc_search_pid(pid);
+  int s;
+  (void)options; /* not handled */
+  if (p==NULL) return -1;
+  s = proc_wait(p);
+  if (statusp!=NULL) 
+    *(int*)statusp = s;
+  return pid;
+#else
+  (void)options; /* not handled */
+  (void)pid;
+  (void)statusp;
+  return -1;
+#endif
+}
+
+pid_t
+sys_getpid(void)
+{
+#if OPT_WAITPID
+  KASSERT(curproc != NULL);
+  return curproc->p_pid;
+#else
+  return -1;
+#endif
+}

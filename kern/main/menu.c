@@ -136,7 +136,8 @@ common_prog(int nargs, char **args)
 	}
 	
 #if OPT_WAITPID
-	exit_status = proc_wait(proc);
+	//exit_status = proc_wait(proc);
+	sys_waitpid(proc->p_pid,(userptr_t)&exit_status,0);
 	kprintf("exit status of the process: %d\n", exit_status);
 #endif
 
