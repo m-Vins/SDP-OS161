@@ -45,6 +45,7 @@
 #include <test.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
+#include <opt-waitpid.h>
 
 /*
  * In-kernel menu and command dispatcher.
@@ -116,6 +117,7 @@ common_prog(int nargs, char **args)
 {
 	struct proc *proc;
 	int result;
+	int exit_status = -1;
 
 	/* Create a process for the new program to run in. */
 	proc = proc_create_runprogram(args[0] /* name */);
@@ -132,6 +134,12 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
+	
+#if OPT_WAITPID
+	exit_status = proc_wait(proc);
+	kprintf("exit status of the process: %d\n", exit_status);
+#endif
+
 
 	/*
 	 * The new process will be destroyed when the program exits...

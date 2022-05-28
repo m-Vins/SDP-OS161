@@ -15,6 +15,8 @@
 #include <thread.h>
 #include <addrspace.h>
 #include <current.h>
+#include <opt-waitpid.h>
+#include <synch.h>
 
 /*
  * simple proc management system calls
@@ -22,17 +24,26 @@
 void
 sys__exit(int status)
 {
+#if  OPT_WAITPID
+  struct proc *p = curproc;
+  p->status = status & 0xff;
+  proc_remthread(curthread);
 
-  /*implemented by Vincenzo M.
-   * is it needed to save the exit status for the thread or the process?
+  V(p->p_sem);
+  /* 
+   * here it is not destroyed the address space since the 
+   * process waiting for the termination of this process
+   * need the exits status, hence the address space is freed 
+   * within the proc_wait().
    */
 
-  thread_set_exit_status(curthread,status);
+#else
 
-  
   /* get address space of current process and destroy */
   struct addrspace *as = proc_getas();
   as_destroy(as);
+#endif
+
   /* thread exits. proc data structure will be lost */
   thread_exit();
 

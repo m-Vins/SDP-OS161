@@ -386,6 +386,9 @@ defoption syscall
 optfile     syscall      syscall/file_syscalls.c
 optfile     syscall      syscall/proc_syscalls.c
 
+defoption waitpid
+
+
 #
 # Startup and initialization
 #

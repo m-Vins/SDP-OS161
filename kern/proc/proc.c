@@ -54,6 +54,28 @@
  */
 struct proc *kproc;
 
+
+static void
+proc_init_waitpid(struct proc *proc, const char *name) {
+#if OPT_WAITPID
+  proc->p_sem = sem_create(name, 0);
+#else
+  (void)proc;
+  (void)name;
+#endif
+}
+
+
+static void
+proc_end_waitpid(struct proc *proc) {
+#if OPT_WAITPID
+  sem_destroy(proc->p_sem);
+#else
+  (void)proc;
+#endif
+}
+
+
 /*
  * Create a proc structure.
  */
@@ -82,8 +104,11 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+	proc_init_waitpid(proc,name);
+
 	return proc;
 }
+
 
 /*
  * Destroy a proc structure.
@@ -167,6 +192,8 @@ proc_destroy(struct proc *proc)
 
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
+
+	proc_end_waitpid(proc);
 
 	kfree(proc->p_name);
 	kfree(proc);
@@ -317,4 +344,26 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+
+int proc_wait(struct proc *proc){
+#if OPT_WAITPID
+	int return_status;
+	KASSERT(proc != NULL);
+	KASSERT(proc != kproc);
+
+	P(proc -> p_sem);
+	return_status = proc->status;
+	/* 
+	 * destroy the address space of the 
+	 * process after getting the exit status
+	 */
+	proc_destroy(proc);		
+	return return_status;
+
+#else
+	(void)proc;
+	return 0;
+#endif
 }
