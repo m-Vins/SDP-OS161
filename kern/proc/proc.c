@@ -54,11 +54,55 @@
  */
 struct proc *kproc;
 
+#if OPT_WAITPID
+
+
+#define MAXPROC 100
+static struct _processTable
+{
+	char active;
+	struct proc *proc[MAXPROC + 1]; /* since 0 not used */
+	struct spinlock lk;	
+} processTable;
+
+#endif
+
+struct proc *
+proc_search_pid(pid_t pid) {
+#if OPT_WAITPID
+  struct proc *p;
+  KASSERT(pid>=0&&pid<MAXPROC);
+  p = processTable.proc[pid];
+  KASSERT(p->p_pid==pid);
+  return p;
+#else
+  (void)pid;
+  return NULL;
+#endif
+}
+
 
 static void
 proc_init_waitpid(struct proc *proc, const char *name) {
 #if OPT_WAITPID
-  proc->p_sem = sem_create(name, 0);
+	
+  	spinlock_acquire(&processTable.lk);
+	proc->p_pid = 0;
+	
+	for(int i = 1; i < MAXPROC+1; i++){
+		if(processTable.proc[i]==NULL){
+			processTable.proc[i] = proc;
+			proc->p_pid = i;
+			break;
+		}
+	}
+	spinlock_release(&processTable.lk);
+
+	if (proc->p_pid==0) {
+   		panic("too many processes. proc table is full\n");
+  	}
+	proc->status = 0;
+  	proc->p_sem = sem_create(name, 0);
 #else
   (void)proc;
   (void)name;
@@ -70,6 +114,12 @@ static void
 proc_end_waitpid(struct proc *proc) {
 #if OPT_WAITPID
   sem_destroy(proc->p_sem);
+  
+  	spinlock_acquire(&processTable.lk);
+	KASSERT(proc->p_pid>0);
+	KASSERT(proc->p_pid<MAXPROC + 1);
+	processTable.proc[proc->p_pid] = NULL;
+  	spinlock_release(&processTable.lk);
 #else
   (void)proc;
 #endif
@@ -209,6 +259,11 @@ proc_bootstrap(void)
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+#if OPT_WAITPID
+	spinlock_init(&processTable.lk);
+	/* kernel process is not registered in the table */
+	processTable.active = 1;
+#endif
 }
 
 /*

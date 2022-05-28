@@ -106,5 +106,7 @@ struct addrspace *proc_setas(struct addrspace *);
 
 int proc_wait(struct proc *proc);
 
+struct proc *proc_search_pid(pid_t pid);
+
 
 #endif /* _PROC_H_ */

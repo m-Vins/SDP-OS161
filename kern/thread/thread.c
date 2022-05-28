@@ -789,6 +789,10 @@ thread_exit(void)
 	 */
 #if OPT_WAITPID==0 
 	proc_remthread(cur);
+	/* NOTE
+	 * Author: Vincenzo Mezzela
+	 * is it right?
+	 */ 
 #endif
 
 	/* Make sure we *are* detached (move this only if you're sure!) */
