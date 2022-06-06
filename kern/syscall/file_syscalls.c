@@ -20,30 +20,6 @@
 struct openfile systemFileTable[SYSTEM_OPEN_MAX];
 #endif
 
-
-size_t sys_write(int fd, const void *buf, size_t count){
-    unsigned int i = 0;
-    char *b = (char *)buf;
-
-    if(fd == STDOUT_FILENO || fd == STDERR_FILENO){
-        for(i = 0; i < (unsigned int)count; i++){
-            putch(b[i]);   
-        }
-    }
-    return i;
-}
-
-
-size_t sys_read(int fd, const void *buf, size_t count){
-    unsigned int i = 0;
-    if(fd == 0){
-        for(i = 0; i < (unsigned int)count; i++){
-            ((char *)buf)[i] = getch();
-        }
-    }
-    return i;
-}
-
 #if OPT_FILESYSCALL == 1
 int
 sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
@@ -112,4 +88,107 @@ sys_close(int fd)
   vfs_close(vn);	
   return 0;
 }
+
+static int
+file_write(int fd, userptr_t buf_ptr, size_t size){
+    struct openfile *of;
+    struct iovec iov;
+    struct vnode *v;
+	struct uio ku;
+    int result;
+    void *kbuf;
+
+        
+    of = curproc->fileTable[fd];
+    if(of == NULL ) return -1;
+
+    v = of->vn;    
+    kbuf = kmalloc(size);
+    copyin(buf_ptr,kbuf,size);
+    uio_kinit(&iov, &ku, kbuf, size, 0, UIO_WRITE);
+
+    result = VOP_WRITE(v, &ku);
+    if (result) {
+        return result;
+    }
+
+    kfree(kbuf);
+    of->offset = ku.uio_offset;
+    return (size - ku.uio_resid);
+}
+
+static int
+file_read(int fd, userptr_t buf_ptr, size_t size) {
+    struct openfile *of;
+    struct iovec iov;
+    struct vnode *v;
+	struct uio ku;
+    int result;
+    void *kbuf;
+    
+    of = curproc->fileTable[fd];
+    if(of == NULL ) return -1;
+
+    v = of->vn;    
+    kbuf = kmalloc(size);
+    uio_kinit(&iov, &ku, kbuf, size, 0, UIO_READ);
+
+    result = VOP_READ(v, &ku);
+    if (result) {
+        return result;
+    }
+
+    copyout(kbuf,buf_ptr,size);
+    kfree(kbuf);
+    of->offset = ku.uio_offset;
+    return (size - ku.uio_resid);
+}
+
+
 #endif
+
+
+
+
+
+size_t sys_write(int fd, const void *buf, size_t count){
+    unsigned int i = 0;
+    char *b = (char *)buf;
+
+  if (fd!=STDOUT_FILENO && fd!=STDERR_FILENO) {
+#if OPT_FILESYSCALL == 1
+    return file_write(fd, (userptr_t)buf, count);
+#else
+    kprintf("sys_write supported only to stdout\n");
+    return -1;
+#endif
+  }
+    if(fd == STDOUT_FILENO || fd == STDERR_FILENO){
+        for(i = 0; i < (unsigned int)count; i++){
+            putch(b[i]);   
+        }
+    }
+    return i;
+}
+
+
+size_t sys_read(int fd, const void *buf, size_t count){
+    unsigned int i = 0;
+
+
+  if (fd!=STDIN_FILENO) {
+#if OPT_FILESYSCALL == 1
+    return file_read(fd, (userptr_t)buf, count);
+#else
+    kprintf("sys_read supported only to stdin\n");
+    return -1;
+#endif
+  }
+
+    if(fd == 0){
+        for(i = 0; i < (unsigned int)count; i++){
+            ((char *)buf)[i] = getch();
+        }
+    }
+    return i;
+}
