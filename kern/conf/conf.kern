@@ -387,6 +387,7 @@ optfile     syscall      syscall/file_syscalls.c
 optfile     syscall      syscall/proc_syscalls.c
 
 defoption waitpid
+defoption filesyscall
 
 
 #
