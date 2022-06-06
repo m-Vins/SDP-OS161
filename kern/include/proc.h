@@ -39,6 +39,7 @@
 #include <spinlock.h>
 #include <opt-waitpid.h>
 #include <synch.h>
+#include <syscall.h>
 
 struct addrspace;
 struct thread;
@@ -78,6 +79,10 @@ struct proc {
 	pid_t p_pid;			/* 	process identifier		*/
 	struct semaphore *p_sem;
 #endif
+#if OPT_FILESYSCALL
+	struct openfile *fileTable[PROC_MAX_FILE];
+#endif
+
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

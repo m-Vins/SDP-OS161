@@ -34,7 +34,19 @@
 #include <cdefs.h> /* for __DEAD */
 #include "opt-syscall.h"
 #include <opt-waitpid.h>
+#include <opt-filesyscall.h>
 struct trapframe; /* from <machine/trapframe.h> */
+
+#if OPT_FILESYSCALL == 1
+#define PROC_MAX_FILE 10
+
+/* system open file table */
+struct openfile {
+  struct vnode *vn;
+  off_t offset;	
+  unsigned int countRef;
+};
+#endif
 
 /*
  * The system call dispatcher.
@@ -69,6 +81,11 @@ void sys__exit(int status);
 #if OPT_WAITPID
 int sys_waitpid(pid_t pid, userptr_t statusp, int options);
 pid_t sys_getpid(void);
+#endif
+#if OPT_FILESYSCALL
+int
+sys_open(userptr_t path, int openflags, mode_t mode, int *errp);
+int sys_close(int fd);
 #endif
 #endif
 

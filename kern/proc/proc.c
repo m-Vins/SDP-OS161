@@ -156,6 +156,10 @@ proc_create(const char *name)
 
 	proc_init_waitpid(proc,name);
 
+#if OPT_FILE
+        bzero(proc->fileTable,OPEN_MAX*sizeof(struct openfile *));
+#endif
+
 	return proc;
 }
 
